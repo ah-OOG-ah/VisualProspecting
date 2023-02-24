@@ -14,11 +14,15 @@ public enum TargetedMod {
     //
 
     // Replace with your injected mods here, but always keep VANILLA:
+    // loadInDevelopment does NOT consider whether the mod is actually present!
+    // If true, it will attempt to load the mixin in the dev env without checking if the mod is actually present.
+    // If you add a mod locally for testing, remember to set it back to false when you're done,
+    // or add it to dependencies.gradle so other devs can actually debug this.
     VANILLA("Minecraft", "unused", true),
     GREGTECH("GregTech", "gregtech", true),
     JOURNEYMAP("JourneyMap", "journeymap-1.7.10", true),
-    XAEROWORLDMAP("Xaero's World Map", "XaerosWorldMap", true),
-    XAEROMINIMAP("Xaero's Minimap", "Xaeros_Minimap", true),
+    XAEROWORLDMAP("Xaero's World Map", "XaerosWorldMap", false),
+    XAEROMINIMAP("Xaero's Minimap", "Xaeros_Minimap", false),
     TCNODETRACKER("TCNodeTracker", "tcnodetracker-1.7.10", true),
     BARTWORKS("Bartworks", "bartworks", false),
     GALACTICGREG("GalacticGreg", "GalacticGreg", false);
