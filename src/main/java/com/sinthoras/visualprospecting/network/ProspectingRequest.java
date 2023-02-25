@@ -74,6 +74,8 @@ public class ProspectingRequest implements IMessage {
 
         @Override
         public IMessage onMessage(ProspectingRequest message, MessageContext ctx) {
+
+            // Get UUID, time, distance from block, World, chunk pos, and whether it's loaded
             // Check if request is valid/not tempered with
             final UUID uuid = ctx.getServerHandler().playerEntity.getUniqueID();
             final long lastRequest = lastRequestPerPlayer.containsKey(uuid) ? lastRequestPerPlayer.get(uuid) : 0;
@@ -84,25 +86,36 @@ public class ProspectingRequest implements IMessage {
             final int chunkX = Utils.coordBlockToChunk(message.blockX);
             final int chunkZ = Utils.coordBlockToChunk(message.blockZ);
             final boolean isChunkLoaded = world.getChunkProvider().chunkExists(chunkX, chunkZ);
+
+            // Validate request:
+            // Check if the player is in the right dimension, is close enough, isn't spamming, and is loaded
             if (ctx.getServerHandler().playerEntity.dimension == message.dimensionId && distanceSquared <= 1024 // max
                                                                                                                 // 32
                                                                                                                 // blocks
                                                                                                                 // distance
                     && timestamp - lastRequest >= Config.minDelayBetweenVeinRequests
                     && isChunkLoaded) {
+
+                // Get the block, and make sure it's an ore
                 final Block block = world.getBlock(message.blockX, message.blockY, message.blockZ);
                 if (block instanceof GT_Block_Ores_Abstract) {
+
+                    // Get the TE, and make sure it's a TE ore
                     final TileEntity tileEntity = world.getTileEntity(message.blockX, message.blockY, message.blockZ);
                     if (tileEntity instanceof GT_TileEntity_Ores) {
+
+                        // Get the metadata, and make sure it's not a small ore and matched the message
                         final short metaData = ((GT_TileEntity_Ores) tileEntity).mMetaData;
-                        if (isSmallOreId(metaData) == false
-                                && oreIdToMaterialId(metaData) == message.foundOreMetaData) {
+                        if (!isSmallOreId(metaData) && oreIdToMaterialId(metaData) == message.foundOreMetaData) {
+
+                            // Keep track of the last time the player asked, for spam prevention
                             lastRequestPerPlayer.put(uuid, timestamp);
 
                             // Prioritise center vein
                             final OreVeinPosition centerOreVeinPosition = ServerCache.instance
                                     .getOreVein(message.dimensionId, chunkX, chunkZ);
                             if (centerOreVeinPosition.veinType.containsOre(message.foundOreMetaData)) {
+
                                 return new ProspectingNotification(centerOreVeinPosition);
                             }
 
@@ -110,8 +123,11 @@ public class ProspectingRequest implements IMessage {
                             final int centerChunkX = Utils.mapToCenterOreChunkCoord(chunkX);
                             final int centerChunkZ = Utils.mapToCenterOreChunkCoord(chunkZ);
                             for (int offsetChunkX = -3; offsetChunkX <= 3; offsetChunkX += 3) {
+
                                 for (int offsetChunkZ = -3; offsetChunkZ <= 3; offsetChunkZ += 3) {
+
                                     if (offsetChunkX != 0 || offsetChunkZ != 0) {
+
                                         final int neighborChunkX = centerChunkX + offsetChunkX;
                                         final int neighborChunkZ = centerChunkZ + offsetChunkZ;
                                         final int distanceBlocks = Math.max(
@@ -123,6 +139,7 @@ public class ProspectingRequest implements IMessage {
                                                 + 1; // Equals to: ceil(blockSize / 16.0) + 1
                                         if (neighborOreVeinPosition.veinType.containsOre(message.foundOreMetaData)
                                                 && distanceBlocks <= maxDistance) {
+
                                             return new ProspectingNotification(neighborOreVeinPosition);
                                         }
                                     }

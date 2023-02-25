@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.launchwrapper.Launch;
+import net.minecraft.util.ChunkCoordinates;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -21,6 +22,12 @@ import com.sinthoras.visualprospecting.hooks.HooksClient;
 import cpw.mods.fml.common.Loader;
 
 public class Utils {
+
+    // Stores the world directory.
+    public static File world;
+
+    // Stores the world spawn.
+    public static ChunkCoordinates spawn;
 
     public static boolean isDevelopmentEnvironment() {
         return (boolean) Launch.blackboard.get("fml.deobfuscatedEnvironment");
@@ -123,7 +130,7 @@ public class Utils {
     }
 
     public static ByteBuffer readFileToBuffer(File file) {
-        if (file.exists() == false) {
+        if (!file.exists()) {
             return null;
         }
         try {
@@ -210,5 +217,18 @@ public class Utils {
             e.printStackTrace();
             return new HashMap<>();
         }
+    }
+
+    /**
+     * Get the files for one dimension from a directory. Can return null if there is an IOException or if the file is
+     * empty.
+     * 
+     * @param directory Directory containing dimension files.
+     * @param dimID     ID of the dimension file we want.
+     * @return The dimension file requested.
+     */
+    public static ByteBuffer getDIMFile(File directory, int dimID) {
+
+        return readFileToBuffer(new File(directory.toPath() + "/DIM" + dimID));
     }
 }

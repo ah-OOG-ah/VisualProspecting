@@ -132,19 +132,45 @@ public class DimensionCache {
     }
 
     public UpdateResult putOreVein(final OreVeinPosition oreVeinPosition) {
+
         final ChunkCoordIntPair key = getOreVeinKey(oreVeinPosition.chunkX, oreVeinPosition.chunkZ);
-        if (oreChunks.containsKey(key) == false) {
+        if (!oreChunks.containsKey(key)) {
+
             oreChunks.put(key, oreVeinPosition);
             changedOrNewOreChunks.add(key);
             return UpdateResult.New;
         }
+
         final OreVeinPosition storedOreVeinPosition = oreChunks.get(key);
         if (storedOreVeinPosition.veinType != oreVeinPosition.veinType) {
+
             oreChunks.put(key, oreVeinPosition.joinDepletedState(storedOreVeinPosition));
             changedOrNewOreChunks.add(key);
             return UpdateResult.New;
         }
         return UpdateResult.AlreadyKnown;
+    }
+
+    /**
+     * Reset selected veins; these veins need not be present. Input coords are in chunk coordinates, NOT block coords.
+     * Will not error on bad input, but it also probably won't do anything useful.
+     * 
+     * @param startX The X coord of the starting chunk. Must be less than endX.
+     * @param startZ The Z coord of the starting chunk. Must be less than endZ.
+     * @param endX   The X coord of the ending chunk.
+     * @param endZ   The Z coord of the ending chunk.
+     */
+    public void clearOreVeins(int startX, int startZ, int endX, int endZ) {
+
+        // Remove entries if they fall within the corners
+        oreChunks.entrySet().removeIf(entry -> {
+
+            // Get the value
+            OreVeinPosition val = entry.getValue();
+
+            // Check X & Z
+            return (val.chunkX >= startX && val.chunkX <= endX) && (val.chunkZ >= startZ && val.chunkZ <= endZ);
+        });
     }
 
     public void toggleOreVein(int chunkX, int chunkZ) {

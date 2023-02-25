@@ -1,15 +1,20 @@
 package com.sinthoras.visualprospecting.hooks;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Objects;
 import java.util.zip.DataFormatException;
 
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 
 import com.sinthoras.visualprospecting.Config;
 import com.sinthoras.visualprospecting.Tags;
+import com.sinthoras.visualprospecting.Utils;
 import com.sinthoras.visualprospecting.VP;
 import com.sinthoras.visualprospecting.database.RedoServerCacheCommand;
 import com.sinthoras.visualprospecting.database.ServerCache;
@@ -100,22 +105,83 @@ public class HooksShared {
 
     // register server commands in this event handler
     public void fmlLifeCycleEvent(FMLServerStartingEvent event) {
+
+        // Get the server instance, and load the first world I think
+        // Also get the world directory and world spawn, and keep them for later
         final MinecraftServer minecraftServer = event.getServer();
         WorldIdHandler.load(minecraftServer.worldServers[0]);
-        if (ServerCache.instance.loadVeinCache(WorldIdHandler.getWorldId()) == false || Config.recacheVeins) {
+
+        World realFakeWorld = minecraftServer.getEntityWorld();
+        Utils.world = realFakeWorld.getSaveHandler().getWorldDirectory();
+        Utils.spawn = realFakeWorld.getSpawnPoint();
+
+        // If the vein cache is unloadable OR the config demands it...
+        if (!ServerCache.instance.loadVeinCache(WorldIdHandler.getWorldId()) || Config.recacheVeins) {
+
+            // Try to reanalyze, with a catch
             try {
-                WorldAnalysis world = new WorldAnalysis(
-                        minecraftServer.getEntityWorld().getSaveHandler().getWorldDirectory());
+
+                WorldAnalysis world = new WorldAnalysis(Utils.world);
                 world.cacheVeins();
             } catch (IOException | DataFormatException e) {
+
                 VP.info("Could not load world save files to build vein cache!");
                 e.printStackTrace();
             }
         }
+
         event.registerServerCommand(new RedoServerCacheCommand());
     }
 
-    public void fmlLifeCycleEvent(FMLServerStartedEvent event) {}
+    public void fmlLifeCycleEvent(FMLServerStartedEvent event) {
+
+        // Try recaching spawn veins here, might have better luck
+        // Get the world ID
+        String worldID = WorldIdHandler.getWorldId();
+
+        // We indicate whether the spawn chunks have been reloaded by just sticking a file in the storage dir
+        // Get that file!
+        File spawnState = new File(Utils.getSubDirectory(Tags.SERVER_DIR), worldID + File.separator + "spawn_recached");
+
+        // Try to read it, false if we can't
+        boolean spawnCached;
+        try {
+
+            spawnCached = Objects.equals(Files.readAllLines(spawnState.toPath()).get(0), "True");
+        } catch (IOException e) {
+
+            spawnCached = false;
+        }
+
+        // If the spawn veins haven't been recached...
+        if (!spawnCached) {
+
+            // Try to partially reanalyze, with a catch
+            try {
+
+                // Analyze and reload!
+                WorldAnalysis world = new WorldAnalysis(Utils.world);
+                world.cacheSpawnVeins(Utils.spawn);
+
+                // Reset the file
+                // Try to write to it, error if we can't
+                try {
+
+                    Files.write(spawnState.toPath(), "True".getBytes());
+                } catch (IOException e) {
+
+                    VP.error("Could not write to " + spawnState + "!");
+                    VP.error("This may result in recaching spawn every world load, or not recaching it.");
+                    VP.error("Please fix this expediently.");
+                }
+
+            } catch (IOException | DataFormatException e) {
+
+                VP.info("Could not load world save files to rebuild vein cache!");
+                e.printStackTrace();
+            }
+        }
+    }
 
     public void fmlLifeCycleEvent(FMLServerStoppingEvent event) {
         ServerCache.instance.saveVeinCache();
