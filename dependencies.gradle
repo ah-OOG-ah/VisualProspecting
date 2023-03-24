@@ -1,6 +1,6 @@
 dependencies {
     //shadowImplementation('com.github.GTNewHorizons:Enklume:2.1.0:dev')
-    api('com.github.GTNewHorizons:Enklume:2.0.0-9-g0a67d66.dirty:dev')
+    shadowImplementation('com.github.GTNewHorizons:Enklume:2.0.0-11-gab7d23d:dev')
 
     api('com.github.GTNewHorizons:GT5-Unofficial:5.09.41.289:dev')
     api('com.github.GTNewHorizons:TCNodeTracker:1.1.7:dev')
