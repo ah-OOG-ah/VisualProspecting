@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.launchwrapper.Launch;
-import net.minecraft.util.ChunkCoordinates;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -22,12 +21,6 @@ import com.sinthoras.visualprospecting.hooks.HooksClient;
 import cpw.mods.fml.common.Loader;
 
 public class Utils {
-
-    // Stores the world directory.
-    public static File world;
-
-    // Stores the world spawn.
-    public static ChunkCoordinates spawn;
 
     public static boolean isDevelopmentEnvironment() {
         return (boolean) Launch.blackboard.get("fml.deobfuscatedEnvironment");

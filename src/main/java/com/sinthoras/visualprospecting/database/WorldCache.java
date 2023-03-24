@@ -94,7 +94,7 @@ public abstract class WorldCache {
 
     /**
      * Reset some chunks. Not all, and (usually) not none - but some. Input coords are in chunk coordinates, NOT block
-     * coords.
+     * coords. WARNING: This is a PERMANENT delete, not just a temporary clear. It will set needsSaving to true!
      * 
      * @param dimID  The dimension ID.
      * @param startX The X coord of the starting chunk. Must be less than endX.
@@ -108,7 +108,7 @@ public abstract class WorldCache {
         if (dim != null) {
             dim.clearOreVeins(startX, startZ, endX, endZ);
         }
-        needsSaving = false;
+        needsSaving = true;
         isLoaded = false;
     }
 

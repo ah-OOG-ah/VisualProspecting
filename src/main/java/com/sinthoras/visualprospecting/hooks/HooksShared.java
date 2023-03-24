@@ -9,6 +9,7 @@ import java.util.zip.DataFormatException;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.ChunkCoordinates;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 
@@ -112,8 +113,68 @@ public class HooksShared {
         WorldIdHandler.load(minecraftServer.worldServers[0]);
 
         World realFakeWorld = minecraftServer.getEntityWorld();
-        Utils.world = realFakeWorld.getSaveHandler().getWorldDirectory();
-        Utils.spawn = realFakeWorld.getSpawnPoint();
+        File worldF = realFakeWorld.getSaveHandler().getWorldDirectory();
+        ChunkCoordinates spawn = realFakeWorld.getSpawnPoint();
+
+        // Try recaching spawn veins here, might have better luck (again)
+        // Only cache on the server
+        if (event.getSide() == Side.SERVER) {
+
+            // Get the world ID
+            String worldID = WorldIdHandler.getWorldId();
+
+            // We indicate whether the spawn chunks have been reloaded by just sticking a file in the storage dir
+            // Get that file!
+            File dir = new File(Utils.getSubDirectory(Tags.SERVER_DIR), worldID + File.separator);
+            File spawnState = new File(dir, "spawn_recached");
+
+            // Try to read it, false if we can't
+            boolean spawnCached;
+            try {
+
+                spawnCached = Objects.equals(Files.readAllLines(spawnState.toPath()).get(0), "True");
+            } catch (IOException e) {
+
+                spawnCached = false;
+            }
+
+            // If the spawn veins haven't been recached...
+            if (!spawnCached) {
+
+                // Try to partially reanalyze, with a catch
+                try {
+
+                    // Analyze and reload!
+                    WorldAnalysis world = new WorldAnalysis(worldF);
+                    world.cacheSpawnVeins(spawn);
+
+                    // Reset the file
+                    // Try to write to it, error if we can't
+                    try {
+
+                        Files.write(spawnState.toPath(), "True".getBytes());
+                    } catch (IOException e) {
+
+                        // This is only an error if the directory exists
+                        if (dir.exists()) {
+                            VP.error("Could not write to " + spawnState + "!");
+                            VP.error("This may result in recaching spawn every world load, or not recaching it.");
+                            VP.error("Please fix this expediently.");
+                        } else {
+
+                            VP.info(
+                                    "Could not save spawn vein status;"
+                                            + " if this is the first time you opened this world, you can ignore this.");
+                        }
+                    }
+
+                } catch (IOException | DataFormatException e) {
+
+                    VP.info("Could not load world save files to rebuild vein cache!");
+                    e.printStackTrace();
+                }
+            }
+        }
 
         // If the vein cache is unloadable OR the config demands it...
         if (!ServerCache.instance.loadVeinCache(WorldIdHandler.getWorldId()) || Config.recacheVeins) {
@@ -121,7 +182,7 @@ public class HooksShared {
             // Try to reanalyze, with a catch
             try {
 
-                WorldAnalysis world = new WorldAnalysis(Utils.world);
+                WorldAnalysis world = new WorldAnalysis(worldF);
                 world.cacheVeins();
             } catch (IOException | DataFormatException e) {
 
@@ -135,52 +196,6 @@ public class HooksShared {
 
     public void fmlLifeCycleEvent(FMLServerStartedEvent event) {
 
-        // Try recaching spawn veins here, might have better luck
-        // Get the world ID
-        String worldID = WorldIdHandler.getWorldId();
-
-        // We indicate whether the spawn chunks have been reloaded by just sticking a file in the storage dir
-        // Get that file!
-        File spawnState = new File(Utils.getSubDirectory(Tags.SERVER_DIR), worldID + File.separator + "spawn_recached");
-
-        // Try to read it, false if we can't
-        boolean spawnCached;
-        try {
-
-            spawnCached = Objects.equals(Files.readAllLines(spawnState.toPath()).get(0), "True");
-        } catch (IOException e) {
-
-            spawnCached = false;
-        }
-
-        // If the spawn veins haven't been recached...
-        if (!spawnCached) {
-
-            // Try to partially reanalyze, with a catch
-            try {
-
-                // Analyze and reload!
-                WorldAnalysis world = new WorldAnalysis(Utils.world);
-                world.cacheSpawnVeins(Utils.spawn);
-
-                // Reset the file
-                // Try to write to it, error if we can't
-                try {
-
-                    Files.write(spawnState.toPath(), "True".getBytes());
-                } catch (IOException e) {
-
-                    VP.error("Could not write to " + spawnState + "!");
-                    VP.error("This may result in recaching spawn every world load, or not recaching it.");
-                    VP.error("Please fix this expediently.");
-                }
-
-            } catch (IOException | DataFormatException e) {
-
-                VP.info("Could not load world save files to rebuild vein cache!");
-                e.printStackTrace();
-            }
-        }
     }
 
     public void fmlLifeCycleEvent(FMLServerStoppingEvent event) {
