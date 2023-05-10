@@ -41,5 +41,5 @@ item.visualprospecting.prospectorslog.reading.fail3=[Failed]: Yeah..No. I can't 
 item.visualprospecting.prospectorslog.reading.fail4=[Failed]: Do I have a Ph.D. in Geography? NOPE!
 item.visualprospecting.prospectorslog.reading.begin=Those are quite some pages. It might take some time to fully read it.
 item.visualprospecting.prospectorslog.reading.end=I finished the Prospector's Log of %s
-visualprospecting.node.deletehint=Remove with %s
+visualprospecting.node.deletehint=Mark depleted with %s
 visualprospecting.tracked=Tracked: %s
