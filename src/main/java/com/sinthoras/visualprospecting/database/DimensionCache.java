@@ -24,6 +24,7 @@ public class DimensionCache {
         New
     }
 
+    // The in-memory cache of ore chunks
     private final Map<ChunkCoordIntPair, OreVeinPosition> oreChunks = new HashMap<>();
     private final Map<ChunkCoordIntPair, UndergroundFluidPosition> undergroundFluids = new HashMap<>();
     private final Set<ChunkCoordIntPair> changedOrNewOreChunks = new HashSet<>();
@@ -34,12 +35,21 @@ public class DimensionCache {
         this.dimensionId = dimensionId;
     }
 
+    // Saves ore chunks loaded to a file
     public ByteBuffer saveOreChunks() {
-        if (changedOrNewOreChunks.isEmpty() == false) {
+
+        // If there are chunks
+        if (!changedOrNewOreChunks.isEmpty()) {
+
+            // Create a buffer of appropriate size
             final ByteBuffer byteBuffer = ByteBuffer
                     .allocate(changedOrNewOreChunks.size() * (2 * Integer.BYTES + Short.BYTES));
+
+            // Lambda time: stick each one into the buffer, with a special case if it's depleted
+            // WARNING: No member of changedOrNewOreChunks may be null!
             changedOrNewOreChunks.stream().map(oreChunks::get).forEach(oreVeinPosition -> {
-                byteBuffer.putInt(oreVeinPosition.chunkX);
+
+                byteBuffer.putInt(oreVeinPosition.chunkX); // << WARNING! This code is not null-safe!
                 byteBuffer.putInt(oreVeinPosition.chunkZ);
                 short veinTypeId = VeinTypeCaching.getVeinTypeId(oreVeinPosition.veinType);
                 if (oreVeinPosition.isDepleted()) {

@@ -10,6 +10,7 @@ import net.minecraft.util.ChunkCoordinates;
 import com.sinthoras.visualprospecting.Utils;
 import com.sinthoras.visualprospecting.VP;
 import com.sinthoras.visualprospecting.database.ServerCache;
+
 import io.xol.enklume.MinecraftWorld;
 
 public class WorldAnalysis {
