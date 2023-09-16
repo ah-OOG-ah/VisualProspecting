@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import net.minecraft.util.ChunkCoordinates;
+
 import com.sinthoras.visualprospecting.Tags;
 import com.sinthoras.visualprospecting.Utils;
 import com.sinthoras.visualprospecting.database.veintypes.VeinType;
@@ -22,46 +24,36 @@ public abstract class WorldCache {
     protected abstract File getStorageDirectory();
 
     public boolean loadVeinCache(String worldId) {
-
-        // Don't load if it's already loaded
         if (isLoaded) {
             return true;
         }
-
-        // We're gonna load it, set now
         isLoaded = true;
-
-        // Get the cache dirs
         final File worldCacheDirectory = new File(getStorageDirectory(), worldId);
         oreVeinCacheDirectory = new File(worldCacheDirectory, Tags.OREVEIN_DIR);
         undergroundFluidCacheDirectory = new File(worldCacheDirectory, Tags.UNDERGROUNDFLUID_DIR);
         oreVeinCacheDirectory.mkdirs();
         undergroundFluidCacheDirectory.mkdirs();
-
-        // Also get the relevant buffers
         final Map<Integer, ByteBuffer> oreVeinDimensionBuffers = Utils.getDIMFiles(oreVeinCacheDirectory);
         final Map<Integer, ByteBuffer> undergroundFluidDimensionBuffers = Utils
                 .getDIMFiles(undergroundFluidCacheDirectory);
         final Set<Integer> dimensionsIds = new HashSet<>();
         dimensionsIds.addAll(oreVeinDimensionBuffers.keySet());
         dimensionsIds.addAll(undergroundFluidDimensionBuffers.keySet());
-
-        // Can't load an empty cache
+        dimensionsIds.addAll(dimensions.keySet());
         if (dimensionsIds.isEmpty()) {
             return false;
         }
 
-        // For every dim...
         for (int dimensionId : dimensionsIds) {
-
-            // Load it
-            final DimensionCache dimension = new DimensionCache(dimensionId);
+            DimensionCache dimension = dimensions.get(dimensionId);
+            if (dimension == null) {
+                dimension = new DimensionCache(dimensionId);
+            }
             dimension.loadCache(
                     oreVeinDimensionBuffers.get(dimensionId),
                     undergroundFluidDimensionBuffers.get(dimensionId));
             dimensions.put(dimensionId, dimension);
         }
-
         return true;
     }
 
@@ -86,7 +78,6 @@ public abstract class WorldCache {
     }
 
     public void reset() {
-
         dimensions.clear();
         needsSaving = false;
         isLoaded = false;
@@ -94,8 +85,8 @@ public abstract class WorldCache {
 
     /**
      * Reset some chunks. Not all, and (usually) not none - but some. Input coords are in chunk coordinates, NOT block
-     * coords. WARNING: This is a PERMANENT delete, not just a temporary clear. It will set needsSaving to true!
-     * 
+     * coords.
+     *
      * @param dimID  The dimension ID.
      * @param startX The X coord of the starting chunk. Must be less than endX.
      * @param startZ The Z coord of the starting chunk. Must be less than endZ.
@@ -107,9 +98,23 @@ public abstract class WorldCache {
         DimensionCache dim = dimensions.get(dimID);
         if (dim != null) {
             dim.clearOreVeins(startX, startZ, endX, endZ);
+            needsSaving = true;
+            isLoaded = false;
         }
-        needsSaving = true;
-        isLoaded = false;
+    }
+
+    public void resetSpawnChunks(ChunkCoordinates spawn, int dimID) {
+
+        int spawnChunkX = Utils.coordBlockToChunk(spawn.posX);
+        int spawnChunkZ = Utils.coordBlockToChunk(spawn.posZ);
+
+        int spawnChunksRadius = 8;
+        int startX = spawnChunkX - spawnChunksRadius;
+        int startZ = spawnChunkZ - spawnChunksRadius;
+        int endX = spawnChunkX + spawnChunksRadius;
+        int endZ = spawnChunkZ + spawnChunksRadius;
+
+        resetSome(dimID, startX, startZ, endX, endZ);
     }
 
     private DimensionCache.UpdateResult updateSaveFlag(DimensionCache.UpdateResult updateResult) {
@@ -134,15 +139,6 @@ public abstract class WorldCache {
         needsSaving = true;
     }
 
-    /**
-     * Gets ore vein on the server. If the dimension is null, it just returns a NO_VEIN. If there is a dimension, it
-     * calls the appropriate DimensionCache.
-     * 
-     * @param dimensionId The dimension ID; if null, returns NO_VEIN
-     * @param chunkX
-     * @param chunkZ
-     * @return The ore vein at that location (or NO_VEIN)
-     */
     public OreVeinPosition getOreVein(int dimensionId, int chunkX, int chunkZ) {
         DimensionCache dimension = dimensions.get(dimensionId);
         if (dimension == null) {
